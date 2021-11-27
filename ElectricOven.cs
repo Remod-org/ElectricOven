@@ -1,4 +1,4 @@
-﻿#region License (GPL v3)
+#region License (GPL v3)
 /*
     DESCRIPTION
     Copyright (c) 2021 RFC1920 <desolationoutpostpve@gmail.com>
@@ -29,12 +29,13 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.2")]
+    [Info("ElectricOven", "RFC1920", "1.0.3")]
     [Description("Cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
         private ConfigData configData;
 
+        private const string permUse = "electricoven.use";
         private const string CBTN = "oven.status";
         public List<uint> ovens = new List<uint>();
         private readonly List<string> orDefault = new List<string>();
@@ -51,6 +52,7 @@ namespace Oxide.Plugins
             {
                 { "off", "OFF" },
                 { "on", "ON" },
+                { "notauthorized", "You don't have permission to do that !!" },
                 { "enabled", "Electric oven enabled" },
                 { "disabled", "Electric oven disabled" }
             }, this);
@@ -61,9 +63,11 @@ namespace Oxide.Plugins
             if (configData.Settings.debug) Puts(message);
         }
 
-        [Command("cr")]
+        [Command("cr"), Permission(permUse)]
         private void EnableDisable(IPlayer iplayer, string command, string[] args)
         {
+            if (!iplayer.HasPermission(permUse) && configData.Settings.requirePermission) { Message(iplayer, "notauthorized"); return; }
+
             bool en = configData.Settings.defaultEnabled;
             if (orDefault.Contains(iplayer.Id))
             {
@@ -94,6 +98,7 @@ namespace Oxide.Plugins
         {
             LoadConfigValues();
             AddCovalenceCommand("cr", "EnableDisable");
+            permission.RegisterPermission(permUse, this);
         }
 
         private void Unload()
@@ -132,30 +137,6 @@ namespace Oxide.Plugins
         {
             if (entity == null) return;
             CuiHelper.DestroyUi(player, CBTN);
-        }
-
-        private void PowerGUI(BasePlayer player, string type = "cauldron", string onoff = "")
-        {
-            CuiHelper.DestroyUi(player, CBTN);
-
-            string label = "Electricity: " + onoff;
-            string[] pos = new string[2];
-            switch (type)
-            {
-                case "bbq":
-                    pos[0] = "0.85 0.465";
-                    pos[1] = "0.946 0.483";
-                    break;
-                default:
-                    pos[0] = "0.85 0.385";
-                    pos[1] = "0.946 0.413";
-                    break;
-            }
-
-            CuiElementContainer container = UI.Container(CBTN, UI.Color("8B816B", 0.16f), pos[0], pos[1], true, "Overlay");
-            UI.Label(ref container, CBTN, UI.Color("#c7c7c7", 1f), label, 12, "0 0", "1 1");
-
-            CuiHelper.AddUi(player, container);
         }
 
         private object OnOvenToggle(BaseOven oven, BasePlayer player)
@@ -215,6 +196,9 @@ namespace Oxide.Plugins
             {
                 DoLog("Checking ownerID for oven");
                 string ownerid = oven?.OwnerID.ToString();
+
+                if (!permission.UserHasPermission(ownerid, permUse) && configData.Settings.requirePermission) return;
+
                 DoLog($"Found ownerID {ownerid}");
                 if (configData.Settings.defaultEnabled && orDefault.Contains(ownerid))
                 {
@@ -317,11 +301,35 @@ namespace Oxide.Plugins
             Interface.Oxide.DataFileSystem.WriteObject(Name + "/ovens", ovens);
         }
 
+        private void PowerGUI(BasePlayer player, string type = "cauldron", string onoff = "")
+        {
+            CuiHelper.DestroyUi(player, CBTN);
+
+            string label = "Electricity: " + onoff;
+            string[] pos = new string[2];
+            switch (type)
+            {
+                case "bbq":
+                    pos[0] = "0.85 0.465";
+                    pos[1] = "0.946 0.483";
+                    break;
+                default:
+                    pos[0] = "0.85 0.385";
+                    pos[1] = "0.946 0.413";
+                    break;
+            }
+
+            CuiElementContainer container = UI.Container(CBTN, UI.Color("8B816B", 0.16f), pos[0], pos[1], true, "Overlay");
+            UI.Label(ref container, CBTN, UI.Color("#c7c7c7", 1f), label, 12, "0 0", "1 1");
+
+            CuiHelper.AddUi(player, container);
+        }
+
         public class Settings
         {
             public bool defaultEnabled;
+            public bool requirePermission;
             public bool allowOvercooking;
-            public bool autoCook;
             public bool debug;
         }
 
@@ -347,6 +355,7 @@ namespace Oxide.Plugins
                 Settings = new Settings()
                 {
                     defaultEnabled = true,
+                    requirePermission = false,
                     allowOvercooking = false,
                     debug = false
                 },

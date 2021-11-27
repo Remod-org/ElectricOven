@@ -11,7 +11,7 @@ Status indication will be shown in the header for the inventory container when o
 
 ## Permissions
 
-No permissions are required at this time.
+  - `electricoven.use` - Enables spawning of electric ovens and use of the /cr command to enable/disable.
 
 ## Commands
 
@@ -22,14 +22,23 @@ No permissions are required at this time.
 {
   "Settings": {
     "defaultEnabled": true,
+    "requirePermission": false,
     "allowOvercooking": false,
     "debug": false
   },
   "Version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 2
+    "Patch": 3
   }
 }
 ```
+
+If defaultEnabled == true, all users will spawn electric ovens when deploying cauldrons and bbq grills.
+
+However, if requirePermission == true, only those with the electricoven.use permission will do so.
+
+If defaultEnabled == false, users will have to run the /cr command to enable deploying electric ovens.
+
+If requirePermission == true, only those with permission can enable it.
 

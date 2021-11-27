@@ -7,6 +7,8 @@ If power is applied and wood is in the inventory, the oven will not start.  Howe
 
 If you set allowOvercooking == true in the configuration, the oven will continue to cook after the food is finished cooking, which will cause it to burn.
 
+Status indication will be shown in the header for the inventory container when opened, e.g. "Electricity: On"
+
 ## Permissions
 
 No permissions are required at this time.

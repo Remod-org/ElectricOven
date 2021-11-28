@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.3")]
+    [Info("ElectricOven", "RFC1920", "1.0.4")]
     [Description("Cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -202,12 +202,12 @@ namespace Oxide.Plugins
                 DoLog($"Found ownerID {ownerid}");
                 if (configData.Settings.defaultEnabled && orDefault.Contains(ownerid))
                 {
-                    DoLog("Plugin enabled by default, but player disabled");
+                    DoLog("Plugin enabled by default, but player-disabled");
                     return;
                 }
                 else if (!configData.Settings.defaultEnabled && !orDefault.Contains(ownerid))
                 {
-                    DoLog("Plugin disabled by default, and player not enabled");
+                    DoLog("Plugin disabled by default, and not player-enabled");
                     return;
                 }
 
@@ -216,7 +216,7 @@ namespace Oxide.Plugins
                 ElectricalBranch branch = bent as ElectricalBranch;
                 if (bent != null)
                 {
-                    if (oven.ShortPrefabName.Equals("cursed.cauldron.deployed"))
+                    if (oven.ShortPrefabName.Equals("cursedcauldron.deployed"))
                     {
                         bent.transform.localEulerAngles = new Vector3(0, 270, 180);
                         bent.transform.localPosition = new Vector3(-0.29f, 0.65f, 0);
@@ -226,6 +226,7 @@ namespace Oxide.Plugins
                         bent.transform.localEulerAngles = new Vector3(0, 180, 180);
                         bent.transform.localPosition = new Vector3(0f, 0.83f, -0.48f);
                     }
+
                     bent.OwnerID = oven.OwnerID;
                     bent.SetParent(oven);
                     UnityEngine.Object.Destroy(bent.GetComponent<DestroyOnGroundMissing>());
@@ -237,7 +238,7 @@ namespace Oxide.Plugins
                 SimpleLight lamp = lent as SimpleLight;
                 if (lent != null)
                 {
-                    if (oven.ShortPrefabName.Equals("cursed.cauldron.deployed"))
+                    if (oven.ShortPrefabName.Equals("cursedcauldron.deployed"))
                     {
                         lent.transform.localEulerAngles = new Vector3(0, 0, 0);
                         lent.transform.localPosition = new Vector3(0, 0.5f, 0);

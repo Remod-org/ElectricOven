@@ -1,7 +1,7 @@
 # ElectricOven
-Cauldrons and BBQ can use electricity instead of wood.
+Refineries, cauldrons and BBQ can use electricity instead of wood.
 
-When spawning either of these items, an electrical branch and simple light are spawned as part of the device.  For the BBQ, the branch will be on the left side, and for the cauldron it will be on the right.  For the BBQ, the simple light should appear in the middle of the grill while it is operating.
+When spawning any of these items, an electrical branch and simple light are spawned as part of the device.  For the BBQ, the branch will be on the left side, and for the cauldron and refinery it will be on the right.  For the BBQ, the simple light should appear in the middle of the grill while it is operating.
 
 If power is applied and wood is in the inventory, the oven will not start.  However, if power is not applied but wood is present, the oven will operate as normal.
 
@@ -24,12 +24,15 @@ Status indication will be shown in the header for the inventory container when o
     "defaultEnabled": true,
     "requirePermission": false,
     "allowOvercooking": false,
+    "handleRefinery": true,
+    "handleBBQ": true,
+    "handleCauldron": true,
     "debug": false
   },
   "Version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 3
+    "Patch": 5
   }
 }
 ```

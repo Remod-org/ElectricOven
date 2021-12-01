@@ -29,14 +29,17 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.4")]
-    [Description("Cauldrons and BBQ can use electricity instead of wood.")]
+    [Info("ElectricOven", "RFC1920", "1.0.5")]
+    [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
         private ConfigData configData;
 
         private const string permUse = "electricoven.use";
         private const string CBTN = "oven.status";
+        private const string cauldron = "cursedcauldron.deployed";
+        private const string bbq = "bbq.deployed";
+        private const string refinery = "refinery_small_deployed";
         public List<uint> ovens = new List<uint>();
         private readonly List<string> orDefault = new List<string>();
 
@@ -112,7 +115,8 @@ namespace Oxide.Plugins
         private object CanLootEntity(BasePlayer player, StorageContainer container)
         {
             BaseEntity oven = container.GetComponentInParent<BaseEntity>();
-            if (oven.ShortPrefabName.Equals("cursedcauldron.deployed"))
+            DoLog(oven.ShortPrefabName);
+            if (oven.ShortPrefabName.Equals(cauldron) && configData.Settings.handleCauldron)
             {
                 SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
 
@@ -121,7 +125,7 @@ namespace Oxide.Plugins
 
                 PowerGUI(player, "cauldron", status);
             }
-            else if (oven.ShortPrefabName.Equals("bbq.deployed"))
+            else if (oven.ShortPrefabName.Equals(bbq) && configData.Settings.handleBBQ)
             {
                 SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
 
@@ -129,6 +133,15 @@ namespace Oxide.Plugins
                 if (electrified.IsPowered()) status = Lang("on");
 
                 PowerGUI(player, "bbq", status);
+            }
+            else if (oven.ShortPrefabName.Equals(refinery) && configData.Settings.handleRefinery)
+            {
+                SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
+
+                string status = Lang("off");
+                if (electrified.IsPowered()) status = Lang("on");
+
+                PowerGUI(player, "refinery", status);
             }
             return null;
         }
@@ -174,6 +187,7 @@ namespace Oxide.Plugins
                 foreach (Item current in oven.inventory.itemList)
                 {
                     if (current.info.name.Contains("raw")) cooking = true;
+                    if (current.info.name.Equals("crude_oil.item")) cooking = true;
                     else if (current.info.name.Contains("wood")) cooking = true;
                 }
 
@@ -182,6 +196,7 @@ namespace Oxide.Plugins
                 ElectricalBranch eb = oven.GetComponentInChildren<ElectricalBranch>();
                 if (eb?.currentEnergy > 0 && cooking)
                 {
+                    //DoLog("Adding virtual wood");
                     return ItemManager.CreateByName("wood", 1, 0);
                 }
             }
@@ -192,7 +207,9 @@ namespace Oxide.Plugins
         {
             if (oven == null) return;
             if (string.IsNullOrEmpty(oven.ShortPrefabName)) return;
-            if (oven.ShortPrefabName.Equals("cursedcauldron.deployed") || oven.ShortPrefabName.Equals("bbq.deployed"))
+            if ((oven.ShortPrefabName.Equals(cauldron) && configData.Settings.handleCauldron)
+                || (oven.ShortPrefabName.Equals(bbq) && configData.Settings.handleBBQ)
+                || (oven.ShortPrefabName.Equals(refinery) && configData.Settings.handleRefinery))
             {
                 DoLog("Checking ownerID for oven");
                 string ownerid = oven?.OwnerID.ToString();
@@ -216,10 +233,15 @@ namespace Oxide.Plugins
                 ElectricalBranch branch = bent as ElectricalBranch;
                 if (bent != null)
                 {
-                    if (oven.ShortPrefabName.Equals("cursedcauldron.deployed"))
+                    if (oven.ShortPrefabName.Equals(cauldron))
                     {
                         bent.transform.localEulerAngles = new Vector3(0, 270, 180);
                         bent.transform.localPosition = new Vector3(-0.29f, 0.65f, 0);
+                    }
+                    else if (oven.ShortPrefabName.Equals(refinery))
+                    {
+                        bent.transform.localEulerAngles = new Vector3(180, 270, 0);
+                        bent.transform.localPosition = new Vector3(0.75f, 0.65f, 0);
                     }
                     else
                     {
@@ -238,9 +260,14 @@ namespace Oxide.Plugins
                 SimpleLight lamp = lent as SimpleLight;
                 if (lent != null)
                 {
-                    if (oven.ShortPrefabName.Equals("cursedcauldron.deployed"))
+                    if (oven.ShortPrefabName.Equals(cauldron))
                     {
                         lent.transform.localEulerAngles = new Vector3(0, 0, 0);
+                        lent.transform.localPosition = new Vector3(0, 0.5f, 0);
+                    }
+                    else if (oven.ShortPrefabName.Equals(refinery))
+                    {
+                        lent.transform.localEulerAngles = new Vector3(180, 0, 0);
                         lent.transform.localPosition = new Vector3(0, 0.5f, 0);
                     }
                     else
@@ -331,6 +358,9 @@ namespace Oxide.Plugins
             public bool defaultEnabled;
             public bool requirePermission;
             public bool allowOvercooking;
+            public bool handleRefinery;
+            public bool handleBBQ;
+            public bool handleCauldron;
             public bool debug;
         }
 
@@ -343,6 +373,13 @@ namespace Oxide.Plugins
         private void LoadConfigValues()
         {
             configData = Config.ReadObject<ConfigData>();
+
+            if (configData.Version < new VersionNumber(1, 0, 5))
+            {
+                configData.Settings.handleCauldron = true;
+                configData.Settings.handleBBQ = true;
+                configData.Settings.handleRefinery = true;
+            }
 
             configData.Version = Version;
             SaveConfig(configData);
@@ -358,6 +395,9 @@ namespace Oxide.Plugins
                     defaultEnabled = true,
                     requirePermission = false,
                     allowOvercooking = false,
+                    handleBBQ = true,
+                    handleCauldron = true,
+                    handleRefinery = true,
                     debug = false
                 },
                 Version = Version

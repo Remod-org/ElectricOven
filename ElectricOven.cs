@@ -220,7 +220,7 @@ namespace Oxide.Plugins
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
         {
             if (entity == null) return;
-            if (entity?.net.ID > 0 && ovens.Contains(entity.net.ID))
+            if (entity is BaseOven && entity?.net.ID > 0 && ovens.Contains(entity.net.ID))
             {
                 ovens.Remove(entity.net.ID);
             }
@@ -346,7 +346,7 @@ namespace Oxide.Plugins
 
         private void LoadData()
         {
-            ovens = Interface.Oxide.DataFileSystem.ReadObject<List<uint>>(Name + "/ovens");
+            ovens = Interface.Oxide.DataFileSystem.ReadObject<List<uint>>(Name + "/ovens") ?? new List<uint>();
         }
 
         private void SaveData()

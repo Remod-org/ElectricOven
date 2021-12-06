@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.5")]
+    [Info("ElectricOven", "RFC1920", "1.0.6")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -38,8 +38,8 @@ namespace Oxide.Plugins
         private const string permUse = "electricoven.use";
         private const string CBTN = "oven.status";
         private const string cauldron = "cursedcauldron.deployed";
-        private const string bbq = "bbq.deployed";
         private const string refinery = "refinery_small_deployed";
+        private const string bbq = "bbq.deployed";
         public List<uint> ovens = new List<uint>();
         private readonly List<string> orDefault = new List<string>();
 
@@ -114,8 +114,10 @@ namespace Oxide.Plugins
 
         private object CanLootEntity(BasePlayer player, StorageContainer container)
         {
+            if (player == null) return null;
+            if (container == null) return null;
             BaseEntity oven = container.GetComponentInParent<BaseEntity>();
-            DoLog(oven.ShortPrefabName);
+            if (oven == null) return null;
             if (oven.ShortPrefabName.Equals(cauldron) && configData.Settings.handleCauldron)
             {
                 SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
@@ -173,7 +175,10 @@ namespace Oxide.Plugins
             if (eb?.currentEnergy > 0)
             {
                 DoLog("Oven has power!");
-                if (!oven.IsOn()) oven.StartCooking();
+                if (!oven.IsOn())
+                {
+                    oven.StartCooking();
+                }
             }
 
             return null;
@@ -203,6 +208,24 @@ namespace Oxide.Plugins
             return null;
         }
 
+        private object OnNoPowerLightsToggle(IOEntity light)
+        {
+            if (ovens.Contains(light.parentEntity.uid))
+            {
+                return true;
+            }
+            return null;
+        }
+
+        private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
+        {
+            if (entity == null) return;
+            if (entity?.net.ID > 0 && ovens.Contains(entity.net.ID))
+            {
+                ovens.Remove(entity.net.ID);
+            }
+        }
+
         private void OnEntitySpawned(BaseEntity oven)
         {
             if (oven == null) return;
@@ -227,6 +250,10 @@ namespace Oxide.Plugins
                     DoLog("Plugin disabled by default, and not player-enabled");
                     return;
                 }
+
+                // Doing this here so that the hook works to prevent turning the light on by another plugin immediately upon spawn
+                ovens.Add(oven.net.ID);
+                SaveData();
 
                 DoLog($"About to spawn ElectricalBranch for oven {oven.net.ID.ToString()}");
                 BaseEntity bent = GameManager.server.CreateEntity("assets/prefabs/deployable/playerioents/gates/branch/electrical.branch.deployed.prefab", oven.transform.position, oven.transform.rotation, true);
@@ -287,8 +314,6 @@ namespace Oxide.Plugins
                 {
                     Connect(lamp, branch);
                 }
-                ovens.Add(oven.net.ID);
-                SaveData();
             }
         }
 

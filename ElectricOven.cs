@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.6")]
+    [Info("ElectricOven", "RFC1920", "1.0.7")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -95,6 +95,29 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             LoadData();
+
+            List<uint> toremove = new List<uint>();
+            foreach (uint pid in ovens)
+            {
+                DoLog("Setting up old oven");
+                BaseNetworkable oven = BaseNetworkable.serverEntities.Find(pid);
+                if (oven == null)
+                {
+                    toremove.Add(pid);
+                    continue;
+                }
+                ElectricalBranch br = oven.gameObject.GetComponentInChildren<ElectricalBranch>();
+                if (br != null) RemoveComps(br);
+
+                SimpleLight lt = oven.gameObject.GetComponentInChildren<SimpleLight>();
+                if (lt != null) RemoveComps(lt);
+            }
+            foreach (uint tr in toremove)
+            {
+                ovens.Remove(tr);
+            }
+
+            SaveData();
         }
 
         private void Init()
@@ -118,9 +141,11 @@ namespace Oxide.Plugins
             if (container == null) return null;
             BaseEntity oven = container.GetComponentInParent<BaseEntity>();
             if (oven == null) return null;
+            if (oven?.ShortPrefabName == null) return null;
             if (oven.ShortPrefabName.Equals(cauldron) && configData.Settings.handleCauldron)
             {
                 SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
+                if (electrified == null) return null;
 
                 string status = Lang("off");
                 if (electrified.IsPowered()) status = Lang("on");
@@ -130,6 +155,7 @@ namespace Oxide.Plugins
             else if (oven.ShortPrefabName.Equals(bbq) && configData.Settings.handleBBQ)
             {
                 SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
+                if (electrified == null) return null;
 
                 string status = Lang("off");
                 if (electrified.IsPowered()) status = Lang("on");
@@ -139,6 +165,7 @@ namespace Oxide.Plugins
             else if (oven.ShortPrefabName.Equals(refinery) && configData.Settings.handleRefinery)
             {
                 SimpleLight electrified = container.GetComponentInChildren<SimpleLight>();
+                if (electrified == null) return null;
 
                 string status = Lang("off");
                 if (electrified.IsPowered()) status = Lang("on");
@@ -156,7 +183,6 @@ namespace Oxide.Plugins
 
         private object OnOvenToggle(BaseOven oven, BasePlayer player)
         {
-            Puts(oven.net.ID.ToString());
             if (!ovens.Contains(oven.net.ID))
             {
                 DoLog("Oven ID not found, skipping...");
@@ -255,8 +281,7 @@ namespace Oxide.Plugins
                 ovens.Add(oven.net.ID);
                 SaveData();
 
-                DoLog($"About to spawn ElectricalBranch for oven {oven.net.ID.ToString()}");
-                BaseEntity bent = GameManager.server.CreateEntity("assets/prefabs/deployable/playerioents/gates/branch/electrical.branch.deployed.prefab", oven.transform.position, oven.transform.rotation, true);
+                BaseEntity bent = oven.gameObject.GetComponentInChildren<ElectricalBranch>() as BaseEntity ?? GameManager.server.CreateEntity("assets/prefabs/deployable/playerioents/gates/branch/electrical.branch.deployed.prefab", oven.transform.position, oven.transform.rotation, true);
                 ElectricalBranch branch = bent as ElectricalBranch;
                 if (bent != null)
                 {
@@ -278,12 +303,11 @@ namespace Oxide.Plugins
 
                     bent.OwnerID = oven.OwnerID;
                     bent.SetParent(oven);
-                    UnityEngine.Object.Destroy(bent.GetComponent<DestroyOnGroundMissing>());
-                    UnityEngine.Object.Destroy(bent.GetComponent<GroundWatch>());
+                    RemoveComps(bent);
                     bent.Spawn();
                 }
 
-                BaseEntity lent = GameManager.server.CreateEntity("assets/prefabs/misc/permstore/industriallight/industrial.wall.lamp.red.deployed.prefab", oven.transform.position, oven.transform.rotation, true);
+                BaseEntity lent = oven.gameObject.GetComponentInChildren<SimpleLight>() as BaseEntity ?? GameManager.server.CreateEntity("assets/prefabs/misc/permstore/industriallight/industrial.wall.lamp.red.deployed.prefab", oven.transform.position, oven.transform.rotation, true);
                 SimpleLight lamp = lent as SimpleLight;
                 if (lent != null)
                 {
@@ -305,8 +329,7 @@ namespace Oxide.Plugins
                     lent.OwnerID = oven.OwnerID;
                     lent.SetParent(oven);
                     lent.SetFlag(BaseEntity.Flags.Busy, true);
-                    UnityEngine.Object.Destroy(lent.GetComponent<DestroyOnGroundMissing>());
-                    UnityEngine.Object.Destroy(lent.GetComponent<GroundWatch>());
+                    RemoveComps(lent);
                     lent.Spawn();
                 }
 
@@ -314,6 +337,16 @@ namespace Oxide.Plugins
                 {
                     Connect(lamp, branch);
                 }
+            }
+        }
+
+        public void RemoveComps(BaseEntity obj)
+        {
+            UnityEngine.Object.DestroyImmediate(obj.GetComponent<DestroyOnGroundMissing>());
+            UnityEngine.Object.DestroyImmediate(obj.GetComponent<GroundWatch>());
+            foreach (MeshCollider mesh in obj.GetComponentsInChildren<MeshCollider>())
+            {
+                UnityEngine.Object.DestroyImmediate(mesh);
             }
         }
 

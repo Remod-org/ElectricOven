@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.7")]
+    [Info("ElectricOven", "RFC1920", "1.0.8")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -41,6 +41,8 @@ namespace Oxide.Plugins
         private const string refinery = "refinery_small_deployed";
         private const string bbq = "bbq.deployed";
         public List<uint> ovens = new List<uint>();
+
+        private bool startup;
         private readonly List<string> orDefault = new List<string>();
 
         #region Message
@@ -118,6 +120,7 @@ namespace Oxide.Plugins
             }
 
             SaveData();
+            startup = true;
         }
 
         private void Init()
@@ -254,6 +257,7 @@ namespace Oxide.Plugins
 
         private void OnEntitySpawned(BaseEntity oven)
         {
+            if (!startup) return;
             if (oven == null) return;
             if (string.IsNullOrEmpty(oven.ShortPrefabName)) return;
             if ((oven.ShortPrefabName.Equals(cauldron) && configData.Settings.handleCauldron)

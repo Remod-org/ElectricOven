@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.8")]
+    [Info("ElectricOven", "RFC1920", "1.0.9")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -186,6 +186,7 @@ namespace Oxide.Plugins
 
         private object OnOvenToggle(BaseOven oven, BasePlayer player)
         {
+            ElectricSwitch es = oven.GetComponentInChildren<ElectricSwitch>();
             if (!ovens.Contains(oven.net.ID))
             {
                 DoLog("Oven ID not found, skipping...");
@@ -196,6 +197,7 @@ namespace Oxide.Plugins
             {
                 DoLog("Toggled off");
                 oven.StopCooking();
+                es?.SetSwitch(false);
                 return null;
             }
 
@@ -206,6 +208,7 @@ namespace Oxide.Plugins
                 DoLog("Oven has power!");
                 if (!oven.IsOn())
                 {
+                    es?.SetSwitch(true);
                     oven.StartCooking();
                 }
             }
@@ -253,6 +256,38 @@ namespace Oxide.Plugins
             {
                 ovens.Remove(entity.net.ID);
             }
+        }
+
+        private bool ShouldAddLock(ElectricSwitch eswitch)
+        {
+            // Called (exclusively) by ElectroLock
+            DoLog("External check inbound to see if they should add a lock to our switch...");
+            BaseEntity oven = eswitch.GetParentEntity();
+            if (oven == null) return true;
+            return !ovens.Contains(oven.net.ID);
+        }
+
+        // Prevent players from adding wood to our ovens when powered
+        private object CanMoveItem(Item item, PlayerInventory inventory, uint targetContainer, int targetSlot)
+        {
+            if (item == null) return null;
+            if (targetContainer == 0) return null;
+            if (targetSlot == 0) return null;
+            ItemContainer container = inventory?.FindContainer(targetContainer);
+
+            BaseOven oven = container?.entityOwner as BaseOven;
+            if (oven == null) return null;
+            if (!ovens.Contains(oven.net.ID)) return null;
+
+            string res = item?.info?.shortname;
+            DoLog($"Player trying to add {res} to a oven!");
+            ElectricalBranch eb = oven.GetComponentInChildren<ElectricalBranch>();
+            if (eb?.currentEnergy > 0 && res.Equals("wood"))
+            {
+                DoLog($"Player blocked from adding {res} to a oven!");
+                return false;
+            }
+            return null;
         }
 
         private void OnEntitySpawned(BaseEntity oven)
@@ -337,9 +372,32 @@ namespace Oxide.Plugins
                     lent.Spawn();
                 }
 
-                if (lamp != null && branch != null)
+                BaseEntity sent = oven.gameObject.GetComponentInChildren<ElectricSwitch>() as BaseEntity ?? GameManager.server.CreateEntity("assets/prefabs/deployable/playerioents/simpleswitch/switch.prefab", oven.transform.position, oven.transform.rotation, true);
+                ElectricSwitch eswitch = sent as ElectricSwitch;
+                if (sent != null)
                 {
-                    Connect(lamp, branch);
+                    if (oven.ShortPrefabName.Equals(bbq))
+                    {
+                        sent.transform.localEulerAngles = new Vector3(0, 90, 0);
+                        sent.transform.localPosition = new Vector3(0, -0.2f, 0);
+                    }
+                    else
+                    {
+                        sent.transform.localEulerAngles = new Vector3(0, 0, 0);
+                        sent.transform.localPosition = new Vector3(0, -0.2f, 0);
+                    }
+
+                    sent.OwnerID = oven.OwnerID;
+                    sent.SetParent(oven);
+                    sent.SetFlag(BaseEntity.Flags.Busy, true);
+                    RemoveComps(sent);
+                    sent.Spawn();
+                }
+
+                if (eswitch != null && lamp != null && branch != null)
+                {
+                    Connect(lamp, eswitch);
+                    Connect(eswitch, branch);
                 }
             }
         }
@@ -354,31 +412,36 @@ namespace Oxide.Plugins
             }
         }
 
-        private void Connect(SimpleLight lampIO, ElectricalBranch branchIO)
+        private void Connect(IOEntity destIO, IOEntity sourceIO)
         {
-            DoLog("Connecting lamp to branch");
+            DoLog($"Connecting {destIO.ShortPrefabName} to {sourceIO.ShortPrefabName}");
             const int inputSlot = 0;
-            const int outputSlot = 1;
-            branchIO.branchAmount = 5;
+            int outputSlot = 0;
+            if (sourceIO is ElectricalBranch)
+            {
+                ElectricalBranch sourceIOe = sourceIO as ElectricalBranch;
+                sourceIOe.branchAmount = 5;
+                outputSlot = 1;
+            }
 
-            IOEntity.IOSlot branchOutput = branchIO.outputs[outputSlot];
-            IOEntity.IOSlot lampInput = lampIO.inputs[inputSlot];
+            IOEntity.IOSlot srcOutput = sourceIO.outputs[outputSlot];
+            IOEntity.IOSlot dstInput = destIO.inputs[inputSlot];
 
-            lampInput.connectedTo = new IOEntity.IORef();
-            lampInput.connectedTo.Set(branchIO);
-            lampInput.connectedToSlot = outputSlot;
-            lampInput.connectedTo.Init();
-            lampInput.connectedTo.ioEnt._limitedNetworking = true;
-            DoLog($"Lamp input slot {inputSlot.ToString()}:{lampInput.niceName} connected to {branchIO.ShortPrefabName}:{branchOutput.niceName}");
+            dstInput.connectedTo = new IOEntity.IORef();
+            dstInput.connectedTo.Set(sourceIO);
+            dstInput.connectedToSlot = outputSlot;
+            dstInput.connectedTo.Init();
+            dstInput.connectedTo.ioEnt._limitedNetworking = true;
+            DoLog($"{destIO.ShortPrefabName} input slot {inputSlot.ToString()}:{dstInput.niceName} connected to {sourceIO.ShortPrefabName}:{srcOutput.niceName}");
 
-            branchOutput.connectedTo = new IOEntity.IORef();
-            branchOutput.connectedTo.Set(lampIO);
-            branchOutput.connectedToSlot = inputSlot;
-            branchOutput.connectedTo.Init();
-            branchOutput.connectedTo.ioEnt._limitedNetworking = true;
-            branchIO.MarkDirtyForceUpdateOutputs();
-            branchIO.SendNetworkUpdate();
-            DoLog($"Branch output slot {outputSlot.ToString()}:{branchOutput.niceName} connected to {lampIO.ShortPrefabName}:{lampInput.niceName}");
+            srcOutput.connectedTo = new IOEntity.IORef();
+            srcOutput.connectedTo.Set(destIO);
+            srcOutput.connectedToSlot = inputSlot;
+            srcOutput.connectedTo.Init();
+            srcOutput.connectedTo.ioEnt._limitedNetworking = true;
+            sourceIO.MarkDirtyForceUpdateOutputs();
+            sourceIO.SendNetworkUpdate();
+            DoLog($"{sourceIO.ShortPrefabName} output slot {outputSlot.ToString()}:{srcOutput.niceName} connected to {destIO.ShortPrefabName}:{dstInput.niceName}");
         }
 
         private void LoadData()

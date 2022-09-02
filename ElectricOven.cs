@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.0.9")]
+    [Info("ElectricOven", "RFC1920", "1.1.0")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -184,24 +184,75 @@ namespace Oxide.Plugins
             CuiHelper.DestroyUi(player, CBTN);
         }
 
+        private object OnSwitchToggled(ElectricSwitch eswitch, BasePlayer player)
+        {
+            if (eswitch == null) return null;
+            if (player == null) return null;
+
+            BaseOven oven = eswitch.GetComponentInParent<BaseOven>();
+            if (ovens.Contains(oven.net.ID))
+            {
+                DoLog("OnSwitchToggled called for one of our switches!");
+                switch (eswitch.IsOn())
+                {
+                    case true:
+                        ElectricalBranch eb = oven.GetComponentInChildren<ElectricalBranch>();
+                        if (eb?.currentEnergy > 0)
+                        {
+                            DoLog("Oven has power!");
+                            if (!oven.IsOn() && !oven.inventory.IsEmpty())
+                            {
+                                DoLog("Starting to cook.");
+                                eswitch.SetSwitch(true);
+                                oven.StartCooking();
+                            }
+                            else
+                            {
+                                eswitch.SetSwitch(false);
+                            }
+                        }
+                        else
+                        {
+                            eswitch.SetSwitch(false);
+                        }
+                        break;
+                    default:
+                        if (oven.IsOn())
+                        {
+                            DoLog("Stopping cooking.");
+                            eswitch.SetSwitch(false);
+                            oven.StopCooking();
+                        }
+                        break;
+                }
+            }
+            return null;
+        }
+
         private object OnOvenToggle(BaseOven oven, BasePlayer player)
         {
-            ElectricSwitch es = oven.GetComponentInChildren<ElectricSwitch>();
             if (!ovens.Contains(oven.net.ID))
             {
                 DoLog("Oven ID not found, skipping...");
                 return null;
             }
+            DoLog("This is one of our ovens!");
 
+            ElectricSwitch es = oven.GetComponentInChildren<ElectricSwitch>();
             if (oven.IsOn())
             {
                 DoLog("Toggled off");
                 oven.StopCooking();
                 es?.SetSwitch(false);
+                if (player.inventory.loot.IsLooting())
+                {
+                    string status = Lang("off");
+                    if (es.IsOn()) status = Lang("on");
+                    PowerGUI(player, oven.name, status);
+                }
                 return null;
             }
 
-            DoLog("This is one of our ovens!");
             ElectricalBranch eb = oven.GetComponentInChildren<ElectricalBranch>();
             if (eb?.currentEnergy > 0)
             {
@@ -210,6 +261,12 @@ namespace Oxide.Plugins
                 {
                     es?.SetSwitch(true);
                     oven.StartCooking();
+                }
+                if (player.inventory.loot.IsLooting())
+                {
+                    string status = Lang("off");
+                    if (es.IsOn()) status = Lang("on");
+                    PowerGUI(player, oven.name, status);
                 }
             }
 
@@ -235,6 +292,11 @@ namespace Oxide.Plugins
                 {
                     //DoLog("Adding virtual wood");
                     return ItemManager.CreateByName("wood", 1, 0);
+                }
+                else
+                {
+                    ElectricSwitch es = oven.GetComponentInChildren<ElectricSwitch>();
+                    es?.SetSwitch(false);
                 }
             }
             return null;
@@ -263,8 +325,7 @@ namespace Oxide.Plugins
             // Called (exclusively) by ElectroLock
             DoLog("External check inbound to see if they should add a lock to our switch...");
             BaseEntity oven = eswitch.GetParentEntity();
-            if (oven == null) return true;
-            return !ovens.Contains(oven.net.ID);
+            return oven == null || !ovens.Contains(oven.net.ID);
         }
 
         // Prevent players from adding wood to our ovens when powered
@@ -459,21 +520,8 @@ namespace Oxide.Plugins
             CuiHelper.DestroyUi(player, CBTN);
 
             string label = "Electricity: " + onoff;
-            string[] pos = new string[2];
-            switch (type)
-            {
-                case "bbq":
-                    pos[0] = "0.85 0.465";
-                    pos[1] = "0.946 0.483";
-                    break;
-                default:
-                    pos[0] = "0.85 0.385";
-                    pos[1] = "0.946 0.413";
-                    break;
-            }
-
-            CuiElementContainer container = UI.Container(CBTN, UI.Color("8B816B", 0.16f), pos[0], pos[1], true, "Overlay");
-            UI.Label(ref container, CBTN, UI.Color("#c7c7c7", 1f), label, 12, "0 0", "1 1");
+            CuiElementContainer container = UI.Container(CBTN, UI.Color("FFFFFF", 0f), "0.85 0.635", "0.946 0.655", true, "Overlay");
+            UI.Label(ref container, CBTN, UI.Color("#C3B8B0", 1f), label, 12, "0 0", "1 1");
 
             CuiHelper.AddUi(player, container);
         }

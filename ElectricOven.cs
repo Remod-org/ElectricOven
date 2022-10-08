@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.1.0")]
+    [Info("ElectricOven", "RFC1920", "1.1.1")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -329,15 +329,12 @@ namespace Oxide.Plugins
         }
 
         // Prevent players from adding wood to our ovens when powered
-        private object CanMoveItem(Item item, PlayerInventory inventory, uint targetContainer, int targetSlot)
+        private ItemContainer.CanAcceptResult? CanAcceptItem(ItemContainer container, Item item, int targetPos)
         {
             if (item == null) return null;
-            if (targetContainer == 0) return null;
-            if (targetSlot == 0) return null;
-            ItemContainer container = inventory?.FindContainer(targetContainer);
-
             BaseOven oven = container?.entityOwner as BaseOven;
             if (oven == null) return null;
+
             if (!ovens.Contains(oven.net.ID)) return null;
 
             string res = item?.info?.shortname;
@@ -346,7 +343,7 @@ namespace Oxide.Plugins
             if (eb?.currentEnergy > 0 && res.Equals("wood"))
             {
                 DoLog($"Player blocked from adding {res} to a oven!");
-                return false;
+                return ItemContainer.CanAcceptResult.CannotAcceptRightNow;
             }
             return null;
         }

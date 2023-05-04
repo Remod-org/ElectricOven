@@ -29,7 +29,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.1.1")]
+    [Info("ElectricOven", "RFC1920", "1.1.2")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -102,7 +102,7 @@ namespace Oxide.Plugins
             foreach (uint pid in ovens)
             {
                 DoLog("Setting up old oven");
-                BaseNetworkable oven = BaseNetworkable.serverEntities.Find(pid);
+                BaseNetworkable oven = BaseNetworkable.serverEntities.Find(new NetworkableId(pid));
                 if (oven == null)
                 {
                     toremove.Add(pid);
@@ -190,7 +190,7 @@ namespace Oxide.Plugins
             if (player == null) return null;
 
             BaseOven oven = eswitch.GetComponentInParent<BaseOven>();
-            if (ovens.Contains(oven.net.ID))
+            if (ovens.Contains((uint)oven.net.ID.Value))
             {
                 DoLog("OnSwitchToggled called for one of our switches!");
                 switch (eswitch.IsOn())
@@ -231,7 +231,7 @@ namespace Oxide.Plugins
 
         private object OnOvenToggle(BaseOven oven, BasePlayer player)
         {
-            if (!ovens.Contains(oven.net.ID))
+            if (!ovens.Contains((uint)oven.net.ID.Value))
             {
                 DoLog("Oven ID not found, skipping...");
                 return null;
@@ -276,7 +276,7 @@ namespace Oxide.Plugins
         private Item OnFindBurnable(BaseOven oven)
         {
             bool cooking = false;
-            if (ovens.Contains(oven.net.ID))
+            if (ovens.Contains((uint)oven.net.ID.Value))
             {
                 foreach (Item current in oven.inventory.itemList)
                 {
@@ -304,7 +304,7 @@ namespace Oxide.Plugins
 
         private object OnNoPowerLightsToggle(IOEntity light)
         {
-            if (ovens.Contains(light.parentEntity.uid))
+            if (ovens.Contains((uint)light.parentEntity.uid.Value))
             {
                 return true;
             }
@@ -314,9 +314,9 @@ namespace Oxide.Plugins
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
         {
             if (entity == null) return;
-            if (entity is BaseOven && entity?.net.ID > 0 && ovens.Contains(entity.net.ID))
+            if (entity is BaseOven && entity?.net.ID.Value > 0 && ovens.Contains((uint)entity.net.ID.Value))
             {
-                ovens.Remove(entity.net.ID);
+                ovens.Remove((uint)entity.net.ID.Value);
             }
         }
 
@@ -325,7 +325,7 @@ namespace Oxide.Plugins
             // Called (exclusively) by ElectroLock
             DoLog("External check inbound to see if they should add a lock to our switch...");
             BaseEntity oven = eswitch.GetParentEntity();
-            return oven == null || !ovens.Contains(oven.net.ID);
+            return oven == null || !ovens.Contains((uint)oven.net.ID.Value);
         }
 
         // Prevent players from adding wood to our ovens when powered
@@ -335,7 +335,7 @@ namespace Oxide.Plugins
             BaseOven oven = container?.entityOwner as BaseOven;
             if (oven == null) return null;
 
-            if (!ovens.Contains(oven.net.ID)) return null;
+            if (!ovens.Contains((uint)oven.net.ID.Value)) return null;
 
             string res = item?.info?.shortname;
             DoLog($"Player trying to add {res} to a oven!");
@@ -375,7 +375,7 @@ namespace Oxide.Plugins
                 }
 
                 // Doing this here so that the hook works to prevent turning the light on by another plugin immediately upon spawn
-                ovens.Add(oven.net.ID);
+                ovens.Add((uint)oven.net.ID.Value);
                 SaveData();
 
                 BaseEntity bent = oven.gameObject.GetComponentInChildren<ElectricalBranch>() as BaseEntity ?? GameManager.server.CreateEntity("assets/prefabs/deployable/playerioents/gates/branch/electrical.branch.deployed.prefab", oven.transform.position, oven.transform.rotation, true);

@@ -1,12 +1,11 @@
-#region License (GPL v3)
+#region License (GPL v2)
 /*
     DESCRIPTION
     Copyright (c) 2021 RFC1920 <desolationoutpostpve@gmail.com>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
+    as published by the Free Software Foundation; version 2 only.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,7 +18,7 @@
 
     Optionally you can also view the license at <http://www.gnu.org/licenses/>.
 */
-#endregion License Information (GPL v3)
+#endregion License Information (GPL v2)
 using Oxide.Core;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Game.Rust.Cui;
@@ -29,7 +28,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.1.2")]
+    [Info("ElectricOven", "RFC1920", "1.1.3")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -504,12 +503,12 @@ namespace Oxide.Plugins
 
         private void LoadData()
         {
-            ovens = Interface.Oxide.DataFileSystem.ReadObject<List<uint>>(Name + "/ovens") ?? new List<uint>();
+            ovens = Interface.GetMod().DataFileSystem.ReadObject<List<uint>>(Name + "/ovens") ?? new List<uint>();
         }
 
         private void SaveData()
         {
-            Interface.Oxide.DataFileSystem.WriteObject(Name + "/ovens", ovens);
+            Interface.GetMod().DataFileSystem.WriteObject(Name + "/ovens", ovens);
         }
 
         private void PowerGUI(BasePlayer player, string type = "cauldron", string onoff = "")

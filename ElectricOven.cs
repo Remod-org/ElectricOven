@@ -28,7 +28,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ElectricOven", "RFC1920", "1.1.3")]
+    [Info("ElectricOven", "RFC1920", "1.1.4")]
     [Description("Refineries, cauldrons and BBQ can use electricity instead of wood.")]
     internal class ElectricOven : RustPlugin
     {
@@ -39,10 +39,10 @@ namespace Oxide.Plugins
         private const string cauldron = "cursedcauldron.deployed";
         private const string refinery = "refinery_small_deployed";
         private const string bbq = "bbq.deployed";
-        public List<uint> ovens = new List<uint>();
+        public List<uint> ovens = new();
 
         private bool startup;
-        private readonly List<string> orDefault = new List<string>();
+        private readonly List<string> orDefault = new();
 
         #region Message
         private string Lang(string key, string id = null, params object[] args) => string.Format(lang.GetMessage(key, this, id), args);
@@ -97,7 +97,7 @@ namespace Oxide.Plugins
         {
             LoadData();
 
-            List<uint> toremove = new List<uint>();
+            List<uint> toremove = new();
             foreach (uint pid in ovens)
             {
                 DoLog("Setting up old oven");
@@ -424,7 +424,7 @@ namespace Oxide.Plugins
                     }
                     lent.OwnerID = oven.OwnerID;
                     lent.SetParent(oven);
-                    lent.SetFlag(BaseEntity.Flags.Busy, true);
+                    lent.SetFlagLocal(BaseEntity.Flags.Busy, true);
                     RemoveComps(lent);
                     lent.Spawn();
                 }
@@ -446,7 +446,7 @@ namespace Oxide.Plugins
 
                     sent.OwnerID = oven.OwnerID;
                     sent.SetParent(oven);
-                    sent.SetFlag(BaseEntity.Flags.Busy, true);
+                    sent.SetFlagLocal(BaseEntity.Flags.Busy, true);
                     RemoveComps(sent);
                     sent.Spawn();
                 }
@@ -489,7 +489,7 @@ namespace Oxide.Plugins
             dstInput.connectedToSlot = outputSlot;
             dstInput.connectedTo.Init();
             dstInput.connectedTo.ioEnt._limitedNetworking = true;
-            DoLog($"{destIO.ShortPrefabName} input slot {inputSlot.ToString()}:{dstInput.niceName} connected to {sourceIO.ShortPrefabName}:{srcOutput.niceName}");
+            DoLog($"{destIO.ShortPrefabName} input slot {inputSlot}:{dstInput.niceName} connected to {sourceIO.ShortPrefabName}:{srcOutput.niceName}");
 
             srcOutput.connectedTo = new IOEntity.IORef();
             srcOutput.connectedTo.Set(destIO);
@@ -498,7 +498,7 @@ namespace Oxide.Plugins
             srcOutput.connectedTo.ioEnt._limitedNetworking = true;
             sourceIO.MarkDirtyForceUpdateOutputs();
             sourceIO.SendNetworkUpdate();
-            DoLog($"{sourceIO.ShortPrefabName} output slot {outputSlot.ToString()}:{srcOutput.niceName} connected to {destIO.ShortPrefabName}:{dstInput.niceName}");
+            DoLog($"{sourceIO.ShortPrefabName} output slot {outputSlot}:{srcOutput.niceName} connected to {destIO.ShortPrefabName}:{dstInput.niceName}");
         }
 
         private void LoadData()
@@ -557,7 +557,7 @@ namespace Oxide.Plugins
         protected override void LoadDefaultConfig()
         {
             Puts("Creating new config file.");
-            ConfigData config = new ConfigData()
+            ConfigData config = new()
             {
                 Settings = new Settings()
                 {
